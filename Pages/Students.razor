@@ -1,0 +1,133 @@
+@page "/students"
+@inject TeacherPro.Services.StudentService StudentService
+@inject DialogService DialogService;
+@inject NotificationService NotificationService
+
+@using TeacherPro.Models;
+
+<PageTitle>Studenci</PageTitle>
+
+<h1>Studenci</h1>
+
+<RadzenButton Text="Dodej studenta" Click="OpenCreateNewDialog"></RadzenButton>
+
+<RadzenDataGrid
+    TItem="Student"
+    Data="@students"
+    AllowFiltering="true"
+    AllowSorting="true"
+    FilterMode="FilterMode.Advanced"
+    LogicalFilterOperator="LogicalFilterOperator.And"
+    AllowColumnResize="true"
+    ColumnWidth="300px"
+    AllowAlternatingRows="false"
+    AllowPaging="true"
+    PageSize="20"
+    ShowPagingSummary="true"
+    PagerHorizontalAlign="HorizontalAlign.Left"
+    RowUpdate=@Update
+    @ref="grid"
+>
+    <Columns>
+        <RadzenDataGridColumn TItem="Student" Property="Id" Title="ID" Width="80px" TextAlign="TextAlign.Center" />
+        <RadzenDataGridColumn TItem="Student" Property="FirstName" Title="Imię">
+            <EditTemplate Context="student">
+                <RadzenTextBox @bind-Value=@student.FirstName Name="FirstName" Style="width: 100%; display: block" />
+                <RadzenRequiredValidator Component="FirstName" Text="Imię jest wymagane" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Student" Property="LastName" Title="Nazwisko">
+            <EditTemplate Context="student">
+                <RadzenTextBox @bind-Value=@student.LastName Name="LastName" Style="width: 100%; display: block" />
+                <RadzenRequiredValidator Component="LastName" Text="Nazwisko jest wymagane" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Student" Property="StudentNumber" Title="Numer Albumu">
+            <EditTemplate Context="student">
+                <RadzenTextBox @bind-Value=@student.StudentNumber Name="StudentNumber" Style="width: 100%; display: block" />
+            </EditTemplate>
+        </RadzenDataGridColumn>
+        <RadzenDataGridColumn TItem="Student" Width="80px" Title="Akcje" Frozen="true" TextAlign="TextAlign.Center">
+            <Template Context="student">
+                <RadzenButton Click=@(() => Edit(student)) ButtonStyle="ButtonStyle.Warning" Icon="edit"></RadzenButton>
+                <RadzenButton Click=@(() => DeleteStudent(student)) ButtonStyle="ButtonStyle.Danger" Icon="delete"></RadzenButton>
+            </Template>
+            <EditTemplate Context="student">
+                <RadzenButton Click=@(() => SaveEdit(student)) ButtonStyle="ButtonStyle.Success" Icon="check"></RadzenButton>
+                <RadzenButton Click=@(() => CancelEdit(student)) ButtonStyle="ButtonStyle.Warning" Icon="close"></RadzenButton>
+            </EditTemplate>
+        </RadzenDataGridColumn>
+    </Columns>
+</RadzenDataGrid>
+
+@code {
+    IEnumerable<Student> students = null!;
+    RadzenDataGrid<Student> grid = null!;
+
+    protected override void OnInitialized()
+    {
+        students = StudentService.GetStudents();
+    }
+
+    private async void OpenCreateNewDialog() {
+        var dialog = await DialogService.OpenAsync<AddStudent>("Dodaj studenta");
+        await grid.Reload();
+    }
+
+    private async Task DeleteStudent(Student student)
+    {
+        try {
+            await StudentService.DeleteStudent(student);
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Success,
+                Summary = "Usunięto pomyślnie",
+                Detail = $"Pomyślnie usunięto studenta {student.FullName}"
+            });
+        }
+        catch(Exception ex) {
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Error,
+                Summary = "Nie udało się usunąć",
+                Detail = ex.Message
+            });
+        }
+        finally {
+            await grid.Reload();
+        }
+    }
+
+    void Edit(Student student)
+    {
+        grid.EditRow(student);
+    }
+
+    void CancelEdit(Student student)
+    {
+        grid.CancelEditRow(student);
+        StudentService.CancelChanges(student);
+    }
+
+    void SaveEdit(Student student)
+    {
+        grid.UpdateRow(student);
+    }
+
+    async Task Update(Student student)
+    {
+        try {
+            await StudentService.SaveChangesToDb();
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Success,
+                Summary = "Zmodyfikowano studenta",
+                Detail = $"Pomyślnie zmodyfikowano studenta {student.FullName}"
+            });
+        }
+        catch (Exception ex) {
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Error,
+                Summary = "Błąd podczas modyfikacji studenta",
+                Detail = ex.Message
+            });
+        }
+    }
+}

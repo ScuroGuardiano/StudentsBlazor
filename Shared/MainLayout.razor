@@ -1,0 +1,37 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>TeacherPro</PageTitle>
+
+<RadzenDialog/>
+<RadzenNotification/>
+<RadzenContextMenu/>
+<RadzenTooltip/>
+
+<RadzenLayout>
+    <RadzenHeader>
+        <div class="d-flex align-items-center">
+            <RadzenSidebarToggle Click="toggleExpand" />
+            <RadzenLabel Text="Header" />
+        </div>
+    </RadzenHeader>
+
+    <RadzenSidebar @bind-Expanded="@sidebarExpanded">
+        <Navigation />
+    </RadzenSidebar>
+
+    <RadzenBody>
+        @Body
+    </RadzenBody>
+
+    <RadzenFooter class="text-center">
+        <p class="footer-text">Stworzone przez <a href="https://github.com/ScuroGuardiano">ScuroGuardiano</a></p>
+    </RadzenFooter>
+</RadzenLayout>
+
+@code {
+    private bool sidebarExpanded = true;
+
+    private void toggleExpand() {
+        sidebarExpanded = !sidebarExpanded;
+    }
+}

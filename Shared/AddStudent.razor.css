@@ -1,0 +1,13 @@
+.row {
+    margin-bottom: .1rem;
+}
+
+.action-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    padding: 10px 0px;
+    border-top: var(--rz-border-base-700);
+    gap: 5px;
+}

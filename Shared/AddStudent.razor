@@ -1,0 +1,96 @@
+@inject Radzen.DialogService DialogService
+@inject Radzen.NotificationService NotificationService
+@inject TeacherPro.Services.StudentService StudentService
+
+<RadzenTemplateForm TItem="StudentFormModel" Data=@student Submit=@OnSubmit>
+    <div class="row g-0">
+        <div class="col-md-6">
+            <div class="row g-0">
+                <RadzenLabel Component="FirstName" Text="Imię:*"></RadzenLabel>
+            </div>
+            <div class="row g-0">
+                <RadzenTextBox style="width: 100%" Name="FirstName" @bind-Value=@student.FirstName></RadzenTextBox>
+                <RadzenRequiredValidator Component="FirstName" Text="Imię jest wymagane."></RadzenRequiredValidator>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="row g-0">
+                <RadzenLabel Component="LastName" Text="Nazwisko:*"></RadzenLabel>
+            </div>
+            <div class="row g-0">
+                <RadzenTextBox style="width: 100%" Name="LastName" @bind-Value=@student.LastName></RadzenTextBox>
+                <RadzenRequiredValidator Component="LastName" Text="Nazwisko jest wymagane."></RadzenRequiredValidator>
+            </div>
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-md-6">
+            <div class="row g-0">
+                <RadzenLabel Component="StudentNumber" Text="Numer albumu:"></RadzenLabel>
+            </div>
+            <div class="row g-0">
+                <RadzenTextBox style="width: 100%" Name="StudentNumber" @bind-Value=@student.StudentNumber></RadzenTextBox>
+            </div>
+        </div>
+    </div>
+    <div class="action-row">
+        @if(!inProgress) {
+            <RadzenButton
+                class="action-btn"
+                ButtonType="ButtonType.Submit"
+                ButtonStyle="ButtonStyle.Success"
+                Text="Dodaj"
+            ></RadzenButton>
+            <RadzenButton
+                class="action-btn"
+                ButtonStyle="ButtonStyle.Danger"
+                Text="Anuluj"
+                Click=@Cancel
+            ></RadzenButton>
+        }
+        else {
+            <RadzenProgressBar style="width: 100%" Value=100 ShowValue=false Mode="ProgressBarMode.Indeterminate"></RadzenProgressBar>
+        }
+    </div>
+</RadzenTemplateForm>
+
+@code {
+    bool inProgress = false;
+
+    class StudentFormModel
+    {
+        public string FirstName { get; set; } = null!;
+        public string LastName { get; set; } = null!;
+        public string? StudentNumber { get; set; }
+    }
+
+    private StudentFormModel student = new StudentFormModel();
+
+    async Task OnSubmit(StudentFormModel student)
+    {
+        inProgress = true;
+        try {
+            var addedStudent = await StudentService.AddStudent(student.FirstName, student.LastName, student.StudentNumber);
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Success,
+                Summary = "Dodano studenta",
+                Detail = $"Dodano nowego studenta {addedStudent.FullName}, [ID: {addedStudent.Id}]"
+            });
+            DialogService.Close();
+        }
+        catch(Exception ex) {
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Error,
+                Summary = "Błąd",
+                Detail = $"Nie udało się dodać studenta: {ex.Message}"
+            });
+        }
+        finally {
+            inProgress = false;
+        }
+    }
+
+    void Cancel() {
+        DialogService.Close();
+    }
+}
