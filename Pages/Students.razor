@@ -62,7 +62,7 @@
 
 @code {
     IEnumerable<Student> students = null!;
-    RadzenDataGrid<Student> grid = null!;
+    RadzenDataGrid<Student>? grid;
 
     protected override void OnInitialized()
     {
@@ -71,7 +71,7 @@
 
     private async void OpenCreateNewDialog() {
         var dialog = await DialogService.OpenAsync<AddStudent>("Dodaj studenta");
-        await grid.Reload();
+        await grid!.Reload();
     }
 
     private async Task DeleteStudent(Student student)
@@ -92,24 +92,24 @@
             });
         }
         finally {
-            await grid.Reload();
+            await grid!.Reload();
         }
     }
 
     void Edit(Student student)
     {
-        grid.EditRow(student);
+        grid!.EditRow(student);
     }
 
     void CancelEdit(Student student)
     {
-        grid.CancelEditRow(student);
+        grid!.CancelEditRow(student);
         StudentService.CancelChanges(student);
     }
 
     void SaveEdit(Student student)
     {
-        grid.UpdateRow(student);
+        grid!.UpdateRow(student);
     }
 
     async Task Update(Student student)
