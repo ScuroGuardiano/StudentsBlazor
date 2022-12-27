@@ -9,11 +9,12 @@
 
 <h1>Studenci</h1>
 
-<RadzenButton Text="Dodej studenta" Click="OpenCreateNewDialog"></RadzenButton>
+<RadzenButton Text="Dodej studenta" Click=@InsertNewStudent Disabled=@CreateDisabled></RadzenButton>
 
 <RadzenDataGrid
     TItem="Student"
     Data="@students"
+    IsLoading=@isLoading
     AllowFiltering="true"
     AllowSorting="true"
     FilterMode="FilterMode.Advanced"
@@ -26,7 +27,11 @@
     ShowPagingSummary="true"
     PagerHorizontalAlign="HorizontalAlign.Left"
     RowUpdate=@Update
-    @ref="grid"
+    RowCreate=@Create
+    Filter=@Reset
+    Sort=@Reset
+    Page=@Reset
+    @ref="_grid"
 >
     <Columns>
         <RadzenDataGridColumn TItem="Student" Property="Id" Title="ID" Width="80px" TextAlign="TextAlign.Center" />
@@ -47,7 +52,7 @@
                 <RadzenTextBox @bind-Value=@student.StudentNumber Name="StudentNumber" Style="width: 100%; display: block" />
             </EditTemplate>
         </RadzenDataGridColumn>
-        <RadzenDataGridColumn TItem="Student" Width="80px" Title="Akcje" Frozen="true" TextAlign="TextAlign.Center">
+        <RadzenDataGridColumn TItem="Student" Width="100px" Title="Akcje" Frozen="true" TextAlign="TextAlign.Center">
             <Template Context="student">
                 <RadzenButton Click=@(() => Edit(student)) ButtonStyle="ButtonStyle.Warning" Icon="edit"></RadzenButton>
                 <RadzenButton Click=@(() => DeleteStudent(student)) ButtonStyle="ButtonStyle.Danger" Icon="delete"></RadzenButton>
@@ -62,27 +67,66 @@
 
 @code {
     IEnumerable<Student> students = null!;
-    RadzenDataGrid<Student>? grid;
+    RadzenDataGrid<Student>? _grid;
+    RadzenDataGrid<Student> grid => _grid!;
+
+    bool isLoading = false;
+
+    Student? studentToInsert;
+    bool CreateDisabled => studentToInsert != null;
+
+    HashSet<Student> editingStudents = new();
 
     protected override void OnInitialized()
     {
         students = StudentService.GetStudents();
     }
 
-    private async void OpenCreateNewDialog() {
-        var dialog = await DialogService.OpenAsync<AddStudent>("Dodaj studenta");
-        await grid!.Reload();
+    private void Reset()
+    {
+        if (studentToInsert != null)
+        {
+            grid.CancelEditRow(studentToInsert);
+            studentToInsert = null;
+        }
+
+        if (editingStudents.Count() > 0)
+        {
+            foreach(var studentEdit in editingStudents)
+            {
+                grid.CancelEditRow(studentEdit);
+            }
+            editingStudents.Clear();
+        }
+    }
+
+    private void InsertNewStudent()
+    {
+        if (studentToInsert != null)
+        {
+            return;
+        }
+        studentToInsert = new Student();
+        grid.InsertRow(studentToInsert);
     }
 
     private async Task DeleteStudent(Student student)
     {
+        var confirm = await Confirm("Usuwanie studenta", $"Czy na pewno chcesz usunąć studenta {student.FullName}?");
+        if (!confirm)
+        {
+            return;
+        }
+
         try {
+            isLoading = true;
             await StudentService.DeleteStudent(student);
             NotificationService.Notify(new NotificationMessage {
                 Severity = NotificationSeverity.Success,
                 Summary = "Usunięto pomyślnie",
                 Detail = $"Pomyślnie usunięto studenta {student.FullName}"
             });
+            await grid.Reload();
         }
         catch(Exception ex) {
             NotificationService.Notify(new NotificationMessage {
@@ -92,29 +136,45 @@
             });
         }
         finally {
-            await grid!.Reload();
+            isLoading = false;
         }
     }
 
     void Edit(Student student)
     {
-        grid!.EditRow(student);
+        // Edytowanie rekordu podczas dodawania jakiegoś zawsze go usuwa
+        // Więc muszę go dać na null, żeby przycisk się odblokował.
+        studentToInsert = null;
+        editingStudents.Add(student);
+        grid.EditRow(student);
     }
 
     void CancelEdit(Student student)
     {
-        grid!.CancelEditRow(student);
+        if (student == studentToInsert)
+        {
+            studentToInsert = null;
+        }
+
+        editingStudents.Remove(student);
+
+        grid.CancelEditRow(student);
         StudentService.CancelChanges(student);
     }
 
     void SaveEdit(Student student)
     {
-        grid!.UpdateRow(student);
+        if (student == studentToInsert)
+        {
+            studentToInsert = null;
+        }
+        grid.UpdateRow(student);
     }
 
     async Task Update(Student student)
     {
         try {
+            isLoading = true;
             await StudentService.SaveChangesToDb();
             NotificationService.Notify(new NotificationMessage {
                 Severity = NotificationSeverity.Success,
@@ -129,5 +189,42 @@
                 Detail = ex.Message
             });
         }
+        finally {
+            isLoading = false;
+        }
+    }
+
+    private async void Create(Student student)
+    {
+        try {
+            isLoading = true;
+            await StudentService.AddStudent(student);
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Success,
+                Summary = "Utworzono nowego studenta",
+                Detail = $"Pomyślnie utworzono nowego studenta: {student.FullName}"
+            });
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(new NotificationMessage {
+                Severity = NotificationSeverity.Error,
+                Summary = "Błąd podczas tworzenia nowego studenta",
+                Detail = ex.Message
+            });
+        }
+        finally {
+            isLoading = false;
+        }
+    }
+
+    private async Task<bool> Confirm(string title, string text)
+    {
+        var res = await DialogService.Confirm(text, title, new ConfirmOptions {
+            OkButtonText = "Tak",
+            CancelButtonText = "Nie"
+        });
+        
+        return res.HasValue ? res.Value : false;
     }
 }

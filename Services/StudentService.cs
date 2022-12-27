@@ -43,6 +43,13 @@ public class StudentService
         return student;
     }
 
+    public async Task<Student> AddStudent(Student student)
+    {
+        _context.Add(student);
+        await _context.SaveChangesAsync();
+        return student;
+    }
+
     public async Task DeleteStudent(Student student)
     {
         _context.Students.Remove(student);
